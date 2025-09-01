@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Handyman Ledger</title>
+  <link rel="manifest" href="data:application/manifest+json,{&quot;name&quot;:&quot;Handyman Ledger&quot;,&quot;short_name&quot;:&quot;Ledger&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;start_url&quot;:&quot;.&quot;,&quot;background_color&quot;:&quot;#0f172a&quot;,&quot;theme_color&quot;:&quot;#0ea5e9&quot;}" />
+  <meta name="theme-color" content="#0ea5e9" />
+  <style>
+    :root{
+      --bg:#0b1220; --card:#0f172a; --muted:#94a3b8; --text:#e5e7eb; --brand:#0ea5e9; --brand2:#06b6d4; --bad:#ef4444; --good:#22c55e; --warn:#f59e0b;
+      --radius:18px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:linear-gradient(180deg,#0b1220,#0b1220 60%,#0a0f1d);color:var(--text);font:15px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial}
+    .app{max-width:980px;margin:0 auto;padding:16px}
+    header{position:sticky;top:0;z-index:10;background:rgba(11,18,32,.8);backdrop-filter:blur(10px);border-bottom:1px solid #0f1b33}
+    header .bar{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:12px 8px}
+    h1{font-size:18px;margin:0;letter-spacing:.3px}
+    .tabs{display:grid;grid-template-columns:repeat(8,1fr);gap:8px;margin:8px 0 0}
+    .tab{padding:10px;border-radius:12px;background:#0f1b33;color:#c7d2fe;text-align:center;cursor:pointer;border:1px solid #132347}
+    .tab.active{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#07111f;font-weight:700;border-color:transparent}
+    main{padding:18px}
+    .grid{display:grid;gap:14px}
+    @media(min-width:760px){.grid.cols-2{grid-template-columns:1fr 1fr}}
+    .card{background:var(--card);border:1px solid #1f2b46;border-radius:var(--radius);padding:16px}
+    label{display:block;margin:10px 0 6px;color:var(--muted);font-size:12px;letter-spacing:.2px}
+    input,select,textarea{width:100%;padding:12px 12px;border-radius:12px;border:1px solid #2a395e;background:#0b1427;color:var(--text);outline:none}
+    input:focus,select:focus,textarea:focus{border-color:var(--brand)}
+    .row{display:flex;gap:10px;align-items:center}
+    .row>div{flex:1}
+    .actions{display:flex;gap:8px;flex-wrap:wrap}
+    button{padding:10px 14px;border-radius:12px;border:1px solid #1e293b;background:#0f1b33;color:#e2e8f0;cursor:pointer}
+    button.primary{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#051018;border:none}
+    button.danger{background:#2a0e11;border:1px solid #46151a;color:#fecaca}
+    .pill{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;background:#0f1b33;border:1px solid #1f2b46;color:#cbd5e1;font-size:12px}
+    .stat{padding:12px;border-radius:16px;background:#0b1427;border:1px solid #1f2b46}
+    .stat h3{margin:0 0 6px;font-size:13px;color:#94a3b8}
+    .stat .v{font-weight:800;font-size:20px}
+    table{width:100%;border-collapse:separate;border-spacing:0 8px}
+    td,th{padding:10px 12px;text-align:left}
+    thead th{color:#94a3b8;font-size:12px;font-weight:600}
+    tbody tr{background:#0b1427;border:1px solid #1f2b46}
+    tbody td:first-child, thead th:first-child{border-top-left-radius:12px;border-bottom-left-radius:12px}
+    tbody td:last-child, thead th:last-child{border-top-right-radius:12px;border-bottom-right-radius:12px}
+    .badge{font-size:11px;border:1px solid #1f2b46;padding:4px 8px;border-radius:999px}
+    .type-expense{color:#fecaca}
+    .type-income{color:#bbf7d0}
+    .type-mileage{color:#fde68a}
+    .type-materials{color:#bfdbfe}
+    .hint{color:#9ca3af;font-size:12px}
+    .footer{color:#64748b;font-size:12px;margin-top:24px;text-align:center}
+    .hidden{display:none}
+    .progress{height:8px;background:#0f1b33;border-radius:20px;overflow:hidden}
+    .progress>div{height:100%;background:linear-gradient(90deg,var(--brand),var(--brand2));width:0%}
+    .thumb{width:72px;height:72px;border-radius:12px;object-fit:cover;border:1px solid #1f2b46;background:#0b1427}
+    .kpi{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+    @media(min-width:760px){.kpi{grid-template-columns:repeat(4,1fr)}}
+    .tag{font-size:11px;padding:3px 8px;border-radius:999px;background:#0c1a32;color:#93c5fd;border:1px solid #1f2b46}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="bar">
+        <h1>🛠️ Handyman Ledger</h1>
+        <div class="actions">
+          <button id="exportCsvBtn" class="primary">Export CSV</button>
+          <button id="backupBtn" title="Download an encrypted backup JSON">Backup</button>
+          <button id=\"restoreBtn\" title=\"Restore from backup JSON\">Restore<\/button>
+          <button id=\"downloadHtmlBtn\" title=\"Download the app source as HTML\">Download HTML<\/button>
+        </div>
+      </div>
+      <div class="tabs">
+        <div class="tab active" data-view="dashboard">Dashboard</div>
+        <div class="tab" data-view="add">Add Entry</div>
+        <div class="tab" data-view="receipts">Receipts</div>
+        <div class="tab" data-view="mileage">Mileage</div>
+        <div class="tab" data-view="materials">Materials</div>
+        <div class="tab" data-view="purchases">Purchases</div>
+        <div class="tab" data-view="reports">Reports</div>
+        <div class="tab" data-view="clients">Clients</div>
+      </div>
+    </header>
+
+    <main>
+      <!-- DASHBOARD -->
+      <section id="view-dashboard" class="grid">
+        <div class="grid cols-2">
+          <div class="card">
+            <div class="kpi">
+              <div class="stat"><h3>Month Income</h3><div class="v" id="kpiIncome">$0</div></div>
+              <div class="stat"><h3>Month Expenses</h3><div class="v" id="kpiExpenses">$0</div></div>
+              <div class="stat"><h3>Mileage</h3><div class="v" id="kpiMiles">0 mi</div></div>
+              <div class="stat"><h3>Net</h3><div class="v" id="kpiNet">$0</div></div>
+            </div>
+          </div>
+          <div class="card">
+            <h3 style="margin:0 0 8px">Quick Add</h3>
+            <div class="row">
+              <select id="qaType">
+                <option value="expense">Expense</option>
+                <option value="income">Income</option>
+              </select>
+              <input id="qaAmount" type="number" step="0.01" placeholder="Amount" />
+              <select id="qaClient"><option value="">(client)</option></select>
+              <button class="primary" id="qaSave">Save</button>
+            </div>
+            <div class="row">
+              <input id="qaNote" placeholder="Note (e.g., Faucet install)" />
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <h3 style="margin:0 0 8px">Recent Entries</h3>
+          <div id="recentTableWrap"></div>
+        </div>
+      </section>
+
+      <!-- ADD ENTRY -->
+      <section id="view-add" class="grid hidden">
+        <div class="card">
+          <div class="row">
+            <div>
+              <label>Type</label>
+              <select id="type">
+                <option value="expense">Expense</option>
+                <option value="income">Income</option>
+                <option value="mileage">Mileage</option>
+                <option value="materials">Materials</option>
+                <option value="tools">Tools</option>
+                <option value="inventory">Inventory</option>
+              </select>
+            </div>
+            <div>
+              <label>Date</label>
+              <input id="date" type="date" />
+            </div>
+            <div>
+              <label>Category</label>
+              <select id="category">
+                <option>General</option>
+                <option>Fuel</option>
+                <option>Supplies</option>
+                <option>Tools</option>
+                <option>Parts</option>
+                <option>Labor</option>
+                <option>Materials</option>
+                <option>Meals</option>
+                <option>Rent</option>
+                <option>Utilities</option>
+                <option>Advertising</option>
+                <option>Other</option>
+              </select>
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label>Amount ($)</label>
+              <input id="amount" type="number" step="0.01" />
+            </div>
+            <div>
+              <label>Vendor / Payee</label>
+              <input id="vendor" placeholder="Home Depot, Client name, etc." />
+            </div>
+            <div>
+              <label>Notes</label>
+              <input id="notes" placeholder="Optional" />
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label>Client</label>
+              <select id="client"><option value="">(none)</option></select>
+            </div>
+            <div>
+              <label style="visibility:hidden">Add Client</label>
+              <button id="addClientInline">+ New Client</button>
+            </div>
+            <div></div>
+          </div>
+          <div class="row" id="mileageFields" class="hidden">
+            <div>
+              <label>Start Odometer</label>
+              <input id="odoStart" type="number" step="0.1" />
+            </div>
+            <div>
+              <label>End Odometer</label>
+              <input id="odoEnd" type="number" step="0.1" />
+            </div>
+            <div>
+              <label>Mileage (mi)</label>
+              <input id="miles" type="number" step="0.1" />
+            </div>
+          </div>
+          <div class="row" id="mileageExtras" class="hidden">
+            <div>
+              <label>Trip Purpose</label>
+              <input id="tripPurpose" placeholder="e.g., Estimate for Smith kitchen" />
+            </div>
+            <div>
+              <label>Link Receipt (by client)</label>
+              <select id="linkedReceipt"><option value="">(none)</option></select>
+            </div>
+            <div></div>
+          </div>
+          <div class="row" id="materialsFields" class="hidden">
+            <div>
+              <label>Material Items (JSON)</label>
+              <textarea id="materialsJson" rows="3" placeholder='[{"item":"2x4","qty":10,"unit":3.25}]'></textarea>
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label>Attach Receipt (optional)</label>
+              <input id="receiptInput" type="file" accept="image/*" capture="environment" />
+              <div class="hint">You can snap a photo of a receipt. We'll OCR it to prefill fields.</div>
+            </div>
+            <img id="receiptThumb" class="thumb" alt="preview" />
+          </div>
+          <div class="row">
+            <button id="scanBtn">Scan Text (OCR)</button>
+            <div class="progress" style="flex:1"><div id="ocrProgress"></div></div>
+            <span id="ocrStatus" class="hint"></span>
+          </div>
+          <div>
+            <label>Extracted Text</label>
+            <textarea id="extracted" rows="4" placeholder="OCR results appear here"></textarea>
+          </div>
+          <div class="actions">
+            <button class="primary" id="saveEntry">Save Entry</button>
+            <button class="danger" id="resetForm">Reset</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- RECEIPTS -->
+      <section id="view-receipts" class="grid hidden">
+        <div class="card">
+          <h3 style="margin:0 0 8px">All Receipts</h3>
+          <div id="receiptsList"></div>
+        </div>
+      </section>
+
+      <!-- MILEAGE -->
+      <section id="view-mileage" class="grid hidden">
+        <div class="card">
+          <div class="row">
+            <div class="pill">IRS rate ($/mi): <input id="rate" type="number" step="0.01" value="0.67" style="width:100px;margin-left:8px"></div>
+            <div class="pill">This trip value: <span id="tripValue">$0.00</span></div>
+          </div>
+          <div class="hint" style="margin-top:8px">Set current IRS standard mileage rate (default 0.67 for 2024). Amount is miles × rate.</div>
+        </div>
+        <div class="card">
+          <h3 style="margin:0 0 8px">Mileage Log</h3>
+          <div id="mileageTableWrap"></div>
+        </div>
+      </section>
+
+      <!-- MATERIALS -->
+      <section id="view-materials" class="grid hidden">
+        <div class="card">
+          <h3 style="margin:0 0 8px">Materials Purchases</h3>
+          <div id="materialsTableWrap"></div>
+        </div>
+      </section>
+
+      <!-- PURCHASES -->
+      <section id="view-purchases" class="grid hidden">
+        <div class="card">
+          <h3 style="margin:0 0 8px">Tools & Inventory</h3>
+          <div id="purchasesTableWrap"></div>
+          <div class="hint" style="margin-top:8px">Tax helper guesses shown below are informational only — confirm with your tax professional.</div>
+        </div>
+      </section>
+
+      <!-- REPORTS -->
+      <section id="view-reports" class="grid hidden">
+        <div class="card">
+          <div class="row">
+            <div class="pill">Asset threshold ($): <input id="assetThresholdInput" type="number" step="1" value="2500" style="width:120px;margin-left:8px"></div>
+            <div class="hint">Tools ≥ threshold → “Capitalize?”; below it → “Likely expense”. (Informational only.)</div>
+          </div>
+        </div>
+        <div class="card">
+          <h3 style="margin:0 0 8px">Per-Client Summary</h3>
+          <div id="clientReportWrap"></div>
+        </div>
+      </section>
+
+      <!-- CLIENTS -->
+      <section id="view-clients" class="grid hidden">
+        <div class="card">
+          <div class="row">
+            <div>
+              <label>New Client</label>
+              <div class="row">
+                <input id="newClientName" placeholder="Client name (e.g., Smith Kitchen)" />
+                <button id="createClientBtn" class="primary">Add Client</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <h3 style="margin:0 0 8px">Open Clients</h3>
+          <div id="openClients"></div>
+        </div>
+        <div class="card">
+          <h3 style="margin:0 0 8px">Closed Clients</h3>
+          <div id="closedClients"></div>
+        </div>
+      </section>
+
+      <div class="footer">Data is stored locally on your device (IndexedDB). Backup before clearing browser/app data.</div>
+    </main>
+  </div>
+
+  <!-- Tesseract.js for OCR -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <!-- idb for IndexedDB convenience -->
+  <script src="https://cdn.jsdelivr.net/npm/idb@7/build/umd.js"></script>
+  <script>
+    // --- Simple Router ---
+    const views = ["dashboard","add","receipts","mileage","materials","purchases","reports","clients"];
+    document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
+      document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+      t.classList.add('active');
+      views.forEach(v=>document.getElementById('view-'+v).classList.add('hidden'));
+      document.getElementById('view-'+t.dataset.view).classList.remove('hidden');
+      if(t.dataset.view==='clients') renderClients();
+      else if(t.dataset.view==='reports') renderReports();
+      else render();
+    }));
+
+    // --- IndexedDB Setup ---
+    let db;
+    const dbPromise = idb.openDB('handyman-ledger', 4, {
+      upgrade(db, oldVersion){
+        let store;
+        if(oldVersion < 1){
+          store = db.createObjectStore('entries', {keyPath:'id', autoIncrement:true});
+          store.createIndex('byType','type');
+          store.createIndex('byDate','date');
+          db.createObjectStore('files', {keyPath:'id', autoIncrement:true}); // blobs
+          db.createObjectStore('kv');
+        } else {
+          store = db.transaction.objectStore('entries');
+        }
+        try{ store.createIndex('byClientId','clientId'); }catch(e){}
+        if(!db.objectStoreNames.contains('clients')){
+          const c = db.createObjectStore('clients', {keyPath:'id', autoIncrement:true});
+          c.createIndex('byStatus','status');
+          c.createIndex('byName','name');
+        }
+      }
+    }).then(d=>{db=d; return d});
+
+    async function putKV(key, value){ (await dbPromise).put('kv', value, key) }
+    async function getKV(key){ return (await dbPromise).get('kv', key) }
+
+    // --- Helpers ---
+    const APP_VERSION = 'v1.2';
+    const $ = sel => document.querySelector(sel);
+    function fmtMoney(n){ if(n===undefined||n===null||isNaN(n)) return '$0.00'; return '$'+Number(n).toFixed(2); }
+    function today(){ return new Date().toISOString().slice(0,10) }
+
+    let clientsCache = [];
+    async function getClients(){
+      const d = await dbPromise;
+      clientsCache = await d.getAll('clients');
+      clientsCache.sort((a,b)=>a.name.localeCompare(b.name));
+      return clientsCache;
+    }
+    async function addClient(name){
+      if(!name) return null;
+      const d = await dbPromise;
+      const id = await d.add('clients',{name:name.trim(), status:'open', created:Date.now()});
+      await getClients();
+      return id;
+    }
+    function clientNameById(id){
+      const c = clientsCache.find(x=>String(x.id)===String(id));
+      return c?c.name:'';
+    }
+
+    // --- Form Logic ---
+    const typeEl=$('#type'), dateEl=$('#date'), categoryEl=$('#category'), amountEl=$('#amount'), vendorEl=$('#vendor'), notesEl=$('#notes');
+    const clientEl=$('#client');
+    const odoStartEl=$('#odoStart'), odoEndEl=$('#odoEnd'), milesEl=$('#miles');
+    const tripPurposeEl=$('#tripPurpose'), linkedReceiptEl=$('#linkedReceipt');
+    const materialsJsonEl=$('#materialsJson');
+    const rateEl=$('#rate'), tripValueEl=$('#tripValue');
+    const receiptInput=$('#receiptInput'), receiptThumb=$('#receiptThumb'), extractedEl=$('#extracted');
+    const progressEl=$('#ocrProgress'), ocrStatus=$('#ocrStatus');
+
+    const qaClientEl=$('#qaClient');
+
+    dateEl.value = today();
+    (async ()=>{ await getClients(); refreshClientDropdowns(); })();
+
+    function refreshClientDropdowns(){
+      const opts = ['<option value="">(none)</option>'].concat(clientsCache.filter(c=>c.status==='open').map(c=>`<option value="${c.id}">${c.name}</option>`));
+      if(clientEl) clientEl.innerHTML = opts.join('');
+      if(qaClientEl) qaClientEl.innerHTML = ['<option value="">(client)</option>'].concat(opts.slice(1)).join('');
+      refreshLinkedReceipts();
+    }
+
+    async function refreshLinkedReceipts(){
+      if(!linkedReceiptEl) return;
+      const d = await dbPromise;
+      const all = await d.getAll('entries');
+      const clientId = clientEl && clientEl.value ? Number(clientEl.value) : null;
+      const candidates = all.filter(e=> e.receiptBlobId && (!clientId || e.clientId===clientId));
+      const items = ['<option value="">(none)</option>'].concat(candidates.map(e=>`<option value="${e.id}">${e.date||''} • ${e.vendor||'Receipt'} • ${fmtMoney(e.amount||0)}</option>`));
+      linkedReceiptEl.innerHTML = items.join('');
+    }
+
+    clientEl?.addEventListener('change', refreshLinkedReceipts);
+
+    function toggleTypeFields(){
+      const t=typeEl.value;
+      document.getElementById('mileageFields').classList.toggle('hidden', t!=="mileage");
+      document.getElementById('mileageExtras').classList.toggle('hidden', t!=="mileage");
+      document.getElementById('materialsFields').classList.toggle('hidden', t!=="materials");
+    }
+    typeEl.addEventListener('change', toggleTypeFields);
+    toggleTypeFields();
+
+    odoStartEl.addEventListener('input', calcMiles);
+    odoEndEl.addEventListener('input', calcMiles);
+    milesEl.addEventListener('input', calcTripValue);
+    rateEl.addEventListener('input', calcTripValue);
+
+    function calcMiles(){
+      const s=parseFloat(odoStartEl.value||0), e=parseFloat(odoEndEl.value||0);
+      const m = e>0 && s>0 ? Math.max(0, e - s) : 0;
+      milesEl.value = m ? m.toFixed(1) : '';
+      calcTripValue();
+    }
+    function calcTripValue(){
+      const m=parseFloat(milesEl.value||0); const r=parseFloat(rateEl.value||0);
+      const v = m*r; tripValueEl.textContent = fmtMoney(v);
+      if(typeEl.value==='mileage') amountEl.value = v ? v.toFixed(2) : '';
+    }
+
+    // --- Receipt Image Handling ---
+    let currentReceiptBlobId = null;
+    receiptInput.addEventListener('change', async (e)=>{
+      const f=e.target.files[0];
+      if(!f) return;
+      receiptThumb.src = URL.createObjectURL(f);
+      const id = await saveBlob(f);
+      currentReceiptBlobId = id;
+    });
+
+    async function saveBlob(file){
+      const arr = await file.arrayBuffer();
+      const blob = new Blob([arr], {type:file.type});
+      const id = await (await dbPromise).add('files', {blob, name:file.name, type:file.type, created:Date.now()});
+      return id;
+    }
+    async function getBlobUrl(id){
+      const rec = await (await dbPromise).get('files', id);
+      if(!rec) return '';
+      return URL.createObjectURL(rec.blob);
+    }
+
+    // --- Settings & Tax Tagging ---
+    let assetThreshold = 2500;
+    async function loadSettings(){
+      const v = await getKV('assetThreshold');
+      if(typeof v === 'number' && !isNaN(v)) assetThreshold = v;
+      const input = document.getElementById('assetThresholdInput');
+      if(input) input.value = assetThreshold;
+    }
+    function autoTaxTag(e){
+      if(e.type==='mileage'){
+        e.taxTag = 'Likely deductible (business miles)';
+        e.taxNotes = 'Business mileage generally deductible; keep trip purpose and client.';
+      } else if(e.type==='tools'){
+        if((e.amount||0) >= assetThreshold){ e.taxTag = 'Capitalize? (over threshold)'; e.taxNotes='Consider depreciation or Sec 179 if eligible.'; }
+        else { e.taxTag = 'Likely expense (de minimis)'; e.taxNotes='Below threshold — may be currently deductible.'; }
+      } else if(e.type==='inventory'){
+        e.taxTag = 'COGS / Inventory';
+        e.taxNotes = 'Inventory usually capitalized until sold/used (COGS).';
+      } else if(e.type==='materials'){
+        e.taxTag = 'Materials (COGS)';
+        e.taxNotes = 'Materials used in jobs typically part of COGS.';
+      } else if(e.type==='expense'){
+        const c=(e.category||'').toLowerCase();
+        if(c.includes('fuel')){ e.taxTag='Vehicle fuel (allocate)'; e.taxNotes='Fuel may be deductible to the extent used for business.'; }
+        else if(c.includes('meals')){ e.taxTag='Meals (limits)'; e.taxNotes='Meals have limited deductibility; keep client/job and purpose.'; }
+        else { e.taxTag='Business expense (general)'; e.taxNotes='Keep receipt and purpose.'; }
+      }
+    }
+
+    // --- OCR ---
+    $('#scanBtn').addEventListener('click', async ()=>{
+      const file = receiptInput.files && receiptInput.files[0];
+      if(!file) { ocrStatus.textContent='Attach a receipt image first.'; return; }
+      progressEl.style.width='0%';
+      ocrStatus.textContent='Running OCR…';
+      try{
+        const worker = await Tesseract.createWorker('eng', 1, {
+          logger:m=>{
+            if(m.status==='recognizing text' && m.progress){ progressEl.style.width = (m.progress*100).toFixed(0)+'%'; }
+          }
+        });
+        const { data:{ text } } = await worker.recognize(file);
+        await worker.terminate();
+        extractedEl.value = text.trim();
+        autoParseReceipt(text);
+        ocrStatus.textContent='Done';
+        progressEl.style.width='100%';
+      }catch(err){
+        console.error(err); ocrStatus.textContent='OCR failed';
+      }
+    });
+
+    function autoParseReceipt(text){
+      const lines = text.split(/\n+/).map(s=>s.trim()).filter(Boolean);
+      const joined = lines.join(' ');
+      // total amount
+      const totalMatch = joined.match(/(TOTAL|AMOUNT|BALANCE)\s*\$?\s*([0-9]+[\.,][0-9]{2})/i) || joined.match(/\$\s*([0-9]+[\.,][0-9]{2})\b(?!.*\$)/);
+      if(totalMatch){ amountEl.value = (totalMatch[2]||totalMatch[1]).replace(',','.'); }
+      // date
+      const dateMatch = joined.match(/(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/);
+      if(dateMatch){
+        const d = dateMatch[1].replace(/\-/g,'/');
+        const parts = d.split('/');
+        const mm = parts[0].padStart(2,'0'), dd = parts[1].padStart(2,'0');
+        let yy = parts[2]; if(yy.length===2) yy = '20'+yy;
+        dateEl.value = `${yy}-${mm}-${dd}`;
+      }
+      // vendor
+      vendorEl.value = lines[0] && lines[0].length<40 ? lines[0] : (lines[1]||'');
+      // category & type guess
+      const cats=[["Fuel",['gas','fuel','shell','chevron','bp']],["Materials",['lumber','sheetrock','plywood','home depot','lowe','menards','ace','supply']],["Meals",['cafe','restaurant','grill','pizza','coffee']],["Tools",['dewalt','milwaukee','tool','harbor freight','makita','bosch']]];
+      const low = joined.toLowerCase();
+      let cat='General';
+      for(const [c,keys] of cats){ if(keys.some(k=>low.includes(k))){cat=c;break;} }
+      categoryEl.value = cat;
+      if(cat==='Tools') { typeEl.value='tools'; toggleTypeFields(); }
+      else if(cat==='Materials') { typeEl.value='materials'; toggleTypeFields(); }
+      else { typeEl.value='expense'; toggleTypeFields(); }
+    }
+
+    // --- Save Entry ---
+    $('#saveEntry').addEventListener('click', async ()=>{
+      const type=typeEl.value;
+      const entry={
+        type,
+        date: dateEl.value||today(),
+        category: categoryEl.value,
+        amount: parseFloat(amountEl.value||0),
+        vendor: vendorEl.value||'',
+        notes: notesEl.value||'',
+        clientId: clientEl && clientEl.value ? Number(clientEl.value): null,
+        clientName: clientEl && clientEl.value ? clientNameById(clientEl.value): '',
+        receiptBlobId: currentReceiptBlobId,
+        extracted: extractedEl.value||'',
+        created: Date.now()
+      };
+      if(type==='mileage'){
+        entry.odoStart = parseFloat(odoStartEl.value||0);
+        entry.odoEnd = parseFloat(odoEndEl.value||0);
+        entry.miles = parseFloat(milesEl.value||0);
+        entry.rate = parseFloat(rateEl.value||0);
+        entry.tripPurpose = (tripPurposeEl?.value||'');
+        entry.linkedReceiptId = linkedReceiptEl && linkedReceiptEl.value ? Number(linkedReceiptEl.value) : null;
+      }
+      if(type==='materials'){
+        try{ entry.materials = JSON.parse(materialsJsonEl.value||'[]'); }
+        catch{ alert('Materials JSON malformed'); return; }
+      }
+      autoTaxTag(entry);
+      await (await dbPromise).add('entries', entry);
+      resetForm();
+      alert('Saved.');
+      document.querySelector('.tab[data-view="dashboard"]').click();
+    });
+
+    function resetForm(){
+      typeEl.value='expense'; toggleTypeFields();
+      dateEl.value=today(); categoryEl.value='General'; amountEl.value=''; vendorEl.value=''; notesEl.value='';
+      if(clientEl) clientEl.value='';
+      odoStartEl.value=''; odoEndEl.value=''; milesEl.value=''; materialsJsonEl.value='';
+      receiptInput.value=''; receiptThumb.src=''; extractedEl.value=''; tripPurposeEl && (tripPurposeEl.value=''); linkedReceiptEl && (linkedReceiptEl.value='');
+      currentReceiptBlobId=null; ocrStatus.textContent=''; progressEl.style.width='0%';
+    }
+    $('#resetForm').addEventListener('click', resetForm);
+
+    // Quick Add
+    $('#qaSave').addEventListener('click', async ()=>{
+      const t=$('#qaType').value, a=parseFloat($('#qaAmount').value||0);
+      if(!a){alert('Enter amount');return}
+      await (await dbPromise).add('entries', {type:t, amount:a, date:today(), category:'General', vendor:'', notes:$('#qaNote').value||'', clientId: qaClientEl && qaClientEl.value ? Number(qaClientEl.value): null, clientName: qaClientEl && qaClientEl.value ? clientNameById(qaClientEl.value): '', created:Date.now()});
+      $('#qaAmount').value=''; $('#qaNote').value=''; if(qaClientEl) qaClientEl.value=''; render();
+    })
+
+    // --- Export CSV ---
+    $('#exportCsvBtn').addEventListener('click', async ()=>{
+      const all = await (await dbPromise).getAll('entries');
+      const rows = [['id','type','date','category','amount','vendor','notes','clientId','clientName','miles','rate','odoStart','odoEnd','tripPurpose','linkedReceiptId','taxTag','taxNotes','materials','extracted']];
+      for(const e of all){
+        rows.push([
+          e.id||'', e.type||'', e.date||'', e.category||'', e.amount||'', e.vendor||'', (e.notes||'').replace(/\n/g,' '), e.clientId??'', e.clientName??'', e.miles||'', e.rate||'', e.odoStart||'', e.odoEnd||'', (e.tripPurpose||''), (e.linkedReceiptId??''), (e.taxTag||''), (e.taxNotes||''), e.materials?JSON.stringify(e.materials):'', (e.extracted||'').slice(0,200).replace(/\n/g,' ')
+        ]);
+      }
+      const csv = rows.map(r=>r.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+      const url = URL.createObjectURL(blob);
+      const a=document.createElement('a'); a.href=url; a.download='handyman-ledger.csv'; a.click(); URL.revokeObjectURL(url);
+    });
+
+    // --- Backup / Restore ---
+    $('#backupBtn').addEventListener('click', async ()=>{
+      const entries = await (await dbPromise).getAll('entries');
+      const files = await (await dbPromise).getAll('files');
+      const payload = { v:1, when:Date.now(), entries, files: await Promise.all(files.map(async f=>({id:f.id, name:f.name, type:f.type, created:f.created, blob: await blobToBase64(f.blob)}))) };
+      const text = JSON.stringify(payload);
+      const blob = new Blob([text], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a=document.createElement('a'); a.href=url; a.download='handyman-ledger-backup.json'; a.click(); URL.revokeObjectURL(url);
+    });
+
+    $('#restoreBtn').addEventListener('click', async ()=>{
+      const inp=document.createElement('input'); inp.type='file'; inp.accept='application/json';
+      inp.onchange=async()=>{
+        const f=inp.files[0]; if(!f) return; const text=await f.text();
+        try{
+          const data=JSON.parse(text);
+          if(data.v!==1) throw new Error('Unsupported backup version');
+          const d=await dbPromise; await d.clear('entries'); await d.clear('files');
+          for(const e of data.entries){ delete e.id; await d.add('entries', e); }
+          for(const f of data.files){ const blob = base64ToBlob(f.blob, f.type); await d.add('files', {blob, name:f.name, type:f.type, created:f.created}); }
+          alert('Restore complete'); render();
+        }catch(err){ alert('Restore failed: '+err.message) }
+      };
+      inp.click();
+    });
+
+    function blobToBase64(blob){
+      return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result.split(',')[1]); r.onerror=rej; r.readAsDataURL(blob); });
+    }
+    function base64ToBlob(b64, type){
+      const binStr=atob(b64); const len=binStr.length; const arr=new Uint8Array(len);
+      for(let i=0;i<len;i++) arr[i]=binStr.charCodeAt(i);
+      return new Blob([arr], {type});
+    }
+
+    // --- Renderers ---
+    async function render(){
+      const d=await dbPromise; const all = await d.getAllFromIndex('entries','byDate');
+      all.sort((a,b)=> (b.date||'').localeCompare(a.date||'' ) || (b.created-a.created));
+
+      // KPIs for current month
+      const now=new Date(); const ym=now.toISOString().slice(0,7);
+      let inc=0, exp=0, miles=0;
+      for(const e of all){ if((e.date||'').startsWith(ym)){
+        if(e.type==='income') inc+=Number(e.amount||0);
+        if(['expense','materials','tools','inventory','purchase'].includes(e.type)) exp+=Number(e.amount||0);
+        if(e.type==='mileage') miles+=Number(e.miles||0);
+      }}
+      $('#kpiIncome').textContent=fmtMoney(inc);
+      $('#kpiExpenses').textContent=fmtMoney(exp);
+      $('#kpiMiles').textContent=`${miles.toFixed(1)} mi`;
+      $('#kpiNet').textContent=fmtMoney(inc-exp);
+
+      // Recent table
+      $('#recentTableWrap').innerHTML = makeTable(all.slice(0,10));
+
+      // Receipts list
+      const withReceipts = all.filter(e=>e.receiptBlobId);
+      const items = await Promise.all(withReceipts.map(async e=>{
+        const url = await getBlobUrl(e.receiptBlobId);
+        return `<div class="row" style="align-items:flex-start;margin-bottom:12px">
+          <img class="thumb" src="${url}" alt="receipt">
+          <div style="flex:1">
+            <div class="tag">${e.date||''}</div>
+            <div style="font-weight:700;margin:6px 0">${e.vendor||'Unknown'}</div>
+            <div class="hint">${(e.extracted||'').slice(0,160)}${(e.extracted||'').length>160?'…':''}</div>
+          </div>
+          <div class="pill">${fmtMoney(e.amount||0)}</div>
+        </div>`
+      }))
+      $('#receiptsList').innerHTML = items.join('') || '<div class="hint">No receipts yet.</div>';
+
+      // Mileage table
+      const mil = all.filter(e=>e.type==='mileage');
+      $('#mileageTableWrap').innerHTML = makeTable(mil);
+
+      // Materials table
+      const mats = all.filter(e=>e.type==='materials');
+      $('#materialsTableWrap').innerHTML = makeTable(mats);
+
+      // Purchases table (tools + inventory)
+      const purchases = all.filter(e=>['tools','inventory'].includes(e.type));
+      $('#purchasesTableWrap').innerHTML = makeTable(purchases);
+    }
+
+    async function renderReports(){
+      await loadSettings();
+      const input = document.getElementById('assetThresholdInput');
+      if(input && !input._bound){
+        input.addEventListener('input', async ()=>{ assetThreshold = Number(input.value||2500); await putKV('assetThreshold', assetThreshold); });
+        input._bound = true;
+      }
+      const d=await dbPromise; const all = await d.getAll('entries');
+      const map = new Map();
+      for(const e of all){
+        const key = e.clientId || 0;
+        const name = e.clientName || (key? '' : '(none)');
+        const obj = map.get(key) || { clientId:key, clientName: name, income:0, expenses:0, materials:0, tools:0, inventory:0, miles:0, milesValue:0, net:0 };
+        if(e.type==='income') obj.income += Number(e.amount||0);
+        if(['expense'].includes(e.type)) obj.expenses += Number(e.amount||0);
+        if(e.type==='materials') obj.materials += Number(e.amount||0);
+        if(e.type==='tools') obj.tools += Number(e.amount||0);
+        if(e.type==='inventory') obj.inventory += Number(e.amount||0);
+        if(e.type==='mileage'){ obj.miles += Number(e.miles||0); obj.milesValue += Number(e.amount||0); }
+        map.set(key, obj);
+      }
+      const rows = Array.from(map.values()).map(r=>{ r.net = r.income - (r.expenses + r.materials + r.tools + r.inventory); return r; });
+      rows.sort((a,b)=> (b.income-b.expenses)-(a.income-a.expenses));
+      const head = `<thead><tr><th>Client</th><th>Income</th><th>Expenses</th><th>Materials</th><th>Tools</th><th>Inventory</th><th>Miles</th><th>Mileage $</th><th>Net</th></tr></thead>`;
+      const body = rows.map(r=>`<tr>
+        <td>${r.clientId? r.clientName : '(none)'}</td>
+        <td>${fmtMoney(r.income)}</td>
+        <td>${fmtMoney(r.expenses)}</td>
+        <td>${fmtMoney(r.materials)}</td>
+        <td>${fmtMoney(r.tools)}</td>
+        <td>${fmtMoney(r.inventory)}</td>
+        <td>${r.miles.toFixed(1)} mi</td>
+        <td>${fmtMoney(r.milesValue)}</td>
+        <td>${fmtMoney(r.net)}</td>
+      </tr>`).join('');
+      document.getElementById('clientReportWrap').innerHTML = `<table>${head}<tbody>${body}</tbody></table>`;
+    }
+
+    function makeTable(rows){
+      if(!rows.length) return '<div class="hint">No data yet.</div>';
+      const head = `<thead><tr><th>Date</th><th>Type</th><th>Client</th><th>Category</th><th>Vendor/Payee</th><th>Amount</th><th>Details</th></tr></thead>`;
+      const body = rows.map(r=>{
+        const t=r.type; const tclass = 'type-'+t;
+        let details='';
+        if(t==='mileage'){
+          const link = r.linkedReceiptId ? ` • linked #${r.linkedReceiptId}` : '';
+          const purpose = r.tripPurpose ? ` — ${r.tripPurpose}` : '';
+          details = `${(r.miles||0).toFixed?.(1)||r.miles||0} mi @ $${r.rate||0}/mi${purpose}${link}`;
+        } else if(t==='materials'){
+          details=(r.materials||[]).map(m=>`${m.qty}× ${m.item} @ ${fmtMoney(m.unit)}`).join(', ');
+        } else {
+          details=r.notes||'';
+        }
+        const tax = r.taxTag ? ` <span class="tag">${r.taxTag}</span>` : '';
+        return `<tr>
+          <td>${r.date||''}</td>
+          <td><span class="badge ${tclass}">${t}</span></td>
+          <td>${r.clientName||''}</td>
+          <td>${r.category||''}</td>
+          <td>${r.vendor||''}</td>
+          <td>${fmtMoney(r.amount||0)}</td>
+          <td>${details}${tax}</td>
+        </tr>`
+      }).join('');
+      return `<table>${head}<tbody>${body}</tbody></table>`;
+    }
+
+    // --- Clients UI ---
+    $('#createClientBtn')?.addEventListener('click', async ()=>{
+      const name = $('#newClientName').value.trim();
+      if(!name) { alert('Enter a client name'); return; }
+      await addClient(name);
+      $('#newClientName').value='';
+      refreshClientDropdowns();
+      renderClients();
+    });
+
+    $('#addClientInline')?.addEventListener('click', async ()=>{
+      const name = prompt('New client name');
+      if(name){ const id = await addClient(name); refreshClientDropdowns(); if(clientEl) clientEl.value = String(id); renderClients(); }
+    });
+
+    async function renderClients(){
+      await getClients();
+      const open = clientsCache.filter(c=>c.status==='open');
+      const closed = clientsCache.filter(c=>c.status==='closed');
+      function list(items){
+        if(!items.length) return '<div class="hint">None</div>';
+        return items.map(c=>`<div class="row" style="justify-content:space-between;margin:6px 0">
+          <div style="flex:1"><span class="tag">#${c.id}</span> <strong>${c.name}</strong></div>
+          <div class="actions">
+            <button data-act="add" data-id="${c.id}">Add Entry</button>
+            <button data-act="toggle" data-id="${c.id}">${c.status==='open'?'Close':'Reopen'}</button>
+          </div>
+        </div>`).join('');
+      }
+      $('#openClients').innerHTML = list(open);
+      $('#closedClients').innerHTML = list(closed);
+      for(const cont of ['openClients','closedClients']){
+        document.getElementById(cont).onclick = async (e)=>{
+          const btn = e.target.closest('button'); if(!btn) return;
+          const id = btn.getAttribute('data-id');
+          const act = btn.getAttribute('data-act');
+          const d = await dbPromise;
+          const c = await d.get('clients', Number(id));
+          if(!c) return;
+          if(act==='toggle'){
+            c.status = c.status==='open'?'closed':'open';
+            await d.put('clients', c);
+            renderClients(); refreshClientDropdowns();
+          } else if(act==='add'){
+            document.querySelector('.tab[data-view="add"]').click();
+            await getClients(); refreshClientDropdowns();
+            if(clientEl) clientEl.value = String(id);
+          }
+        }
+      }
+    }
+
+    // One-click source download (backs up this exact HTML)
+    document.getElementById('downloadHtmlBtn').addEventListener('click', ()=>{
+      const html = '<!DOCTYPE html>
+' + document.documentElement.outerHTML;
+      const blob = new Blob([html], {type:'text/html;charset=utf-8;'});
+      const url = URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=url; a.download=`handyman-ledger-${APP_VERSION}.html`;
+      document.body.appendChild(a); a.click();
+      setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
+    });
+
+    // Initialize
+    render();
+  </script>
+</body>
+</html>
